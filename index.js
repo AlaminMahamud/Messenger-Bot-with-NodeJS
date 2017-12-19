@@ -6,8 +6,8 @@ const
   request = require('request'),
   bodyParser = require('body-parser'),
   app = express().use(bodyParser.json()),
-  PAGE_ACCESS_TOKEN = 'EAAFg1TC3Oc4BALo6b75cO0j1Ls0BVADblr24JgbenhmOpzffIRrsw7RTryYIXpy2u9nSzBdAb9zdDnS0HWl9AV5aofjuqZCdoWnDGb8AxQj7hpS4bWwLtSHpNJcCedvhymDRervBfgxYp6YJJarDCTn8Tk1DCKPOmkdKQmnsKrxUh0e9g';
-
+  PAGE_ACCESS_TOKEN = 'EAAFg1TC3Oc4BALo6b75cO0j1Ls0BVADblr24JgbenhmOpzffIRrsw7RTryYIXpy2u9nSzBdAb9zdDnS0HWl9AV5aofjuqZCdoWnDGb8AxQj7hpS4bWwLtSHpNJcCedvhymDRervBfgxYp6YJJarDCTn8Tk1DCKPOmkdKQmnsKrxUh0e9g',
+  VERIFY_TOKEN2='4991994';
 // Sets server port and logs message on success
 app.listen(process.env.PORT || 1994, () => console.log('webhook is listening on PORT 1994'))
 
@@ -52,7 +52,7 @@ app.post('/webhook', (req, res) => {
 // Adds support for GET Requests to our webhook
 app.get('/webhook', (req, res) => {
   // Your verify token. Should be a random string.
-  let VERIFY_TOKEN = '4991994'
+  let VERIFY_TOKEN = VERIFY_TOKEN2;
 
   // Parse the query params
   let mode = req.query['hub.mode'];
@@ -87,8 +87,33 @@ function handleMessage(sender_psid, received_message) {
     // Creates the payload for a basic text message, which
     // will be added to the body of our request to the Send API
     response = {
-      "text": `You sent the message: "${received_message.text}". Now send me an attachment!`
+      "text": "Hi",
+  "persistent_menu":[
+    {
+      "locale":"default",
+      "composer_input_disabled": true,
+      "call_to_actions":[
+        {
+          "title":"My Account",
+          "type":"nested",
+          "call_to_actions":[
+            {
+              "title":"Pay Bill",
+              "type":"postback",
+              "payload":"PAYBILL_PAYLOAD"
+            },
+            {
+              "type":"web_url",
+              "title":"Latest News",
+              "url":"https://www.messenger.com/",
+              "webview_height_ratio":"full"
+            }
+          ]
+        }
+      ]
     }
+  ]
+}
 
   } else if(received_message.attachments){
 
@@ -101,19 +126,24 @@ function handleMessage(sender_psid, received_message) {
         "payload": {
           "template_type": "generic",
           "elements": [{
-            "title": "Is this the right picture?",
+            "title": "Some Demo things",
             "subtitle": "Tap a button to answer.",
             "image_url": attachment_url,
             "buttons": [
               {
                 "type": "postback",
-                "title": "Yes!",
-                "payload": "yes",
+                "title": "Quick Replies!",
+                "payload": "qr",
               },
               {
                 "type": "postback",
-                "title": "No!",
-                "payload": "no",
+                "title": "call button",
+                "payload": "cb",
+              },
+              {
+                "type": "postback",
+                "title": "Button Template",
+                "payload": "bt",
               }
             ],
           }]
@@ -135,11 +165,66 @@ function handlePostback(sender_psid, received_postback) {
   let payload = received_postback.payload;
 
   // Set the response based on the postback payload
-  if (payload === 'yes') {
-    response = { "text": "Thanks!" }
-  } else if (payload === 'no') {
-    response = { "text": "Oops, try sending another image." }
+  if (payload === 'qr') {
+    response = {
+    "text": "Here's a quick reply!",
+    "quick_replies":[
+      {
+        "content_type":"text",
+        "title":"Search",
+        "payload":"search",
+        "image_url":"http://example.com/img/red.png"
+      },
+      {
+        "content_type":"location"
+      },
+      {
+        "content_type":"text",
+        "title":"Something Else",
+        "payload":"something else"
+      }
+    ]
   }
+  } else if (payload === 'cb') {
+    response = {
+      "attachment":{
+        "type":"template",
+        "payload":{
+          "template_type":"button",
+          "text":"Need further assistance? Talk to a representative",
+          "buttons":[
+            {
+              "type":"phone_number",
+              "title":"Call Representative",
+              "payload":"+8801677902690"
+            }
+          ]
+        }
+      }
+    }
+  } else if (payload === 'bt') {
+       response = {
+    "attachment":{
+      "type":"template",
+      "payload":{
+        "template_type":"button",
+        "text":"What do you want to do next?",
+        "buttons":[
+          {
+            "type":"web_url",
+            "url":"https://www.messenger.com",
+            "title":"Visit Messenger"
+          },
+        ]
+      }
+    }
+  }
+  }
+
+  // else if (payload === '+8801677902690'){
+  //   response = {}
+  // }
+
   // Send the message to acknowledge the postback
   callSendAPI(sender_psid, response);
 }
@@ -148,6 +233,7 @@ function handlePostback(sender_psid, received_postback) {
 function callSendAPI(sender_psid, response) {
   // Construct the message body
   let request_body = {
+    "messaging_type": "RESPONSE",
     "recipient": {
       "id": sender_psid
     },
@@ -163,6 +249,21 @@ function callSendAPI(sender_psid, response) {
   }, (err, res, body) => {
     if (!err) {
       console.log('message sent!')
+    } else {
+      console.error("Unable to send message:" + err);
+    }
+  });
+}
+
+function messenger_profile_api(response){
+  request({
+    "uri": "https://graph.facebook.com/v2.6/me//messenger_profile",
+    "qs": { "access_token": PAGE_ACCESS_TOKEN },
+    "method": "POST",
+    "json": response
+  }, (err, res, body) => {
+    if (!err) {
+      console.log('all sent!')
     } else {
       console.error("Unable to send message:" + err);
     }
